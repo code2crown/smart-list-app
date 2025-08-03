@@ -238,13 +238,19 @@
 
 
         function markPurchased(index) {
-            const price = prompt(`Kitne ka mila "${items[index].name}"?`);
-            if (price === null || price.trim() === '' || isNaN(price)) return;
+        const item = items[index];
+        const rate = prompt(`"${item.name}" ka rate per unit kya hai? (Qty: ${item.qty})`);
 
-            items[index].purchased = true;
-            items[index].price = parseFloat(price);
-            refresh();
-        }
+        if (rate === null || rate.trim() === '' || isNaN(rate)) return;
+
+        const total = parseFloat(rate) * parseFloat(item.qty);
+
+        items[index].purchased = true;
+        items[index].price = parseFloat(total.toFixed(2)); // Save total price
+        save();
+        refresh();
+}
+
 
         function deleteItem(index) {
             items.splice(index, 1);
@@ -320,5 +326,6 @@
         }
     </script>
 </body>
+
 
 </html>
