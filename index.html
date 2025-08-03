@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Smart List with Report</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.0/css/all.min.css"
+        integrity="sha512-DxV+EoADOkOygM4IR9yXP8Sb2qwgidEmeqAEmDKIOfPRQZOWbXCzLC6vjbZyy0vPisbH2SyW27+ddLVCN+OMzQ=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+
+        body {
+            font-family: "Poppins", sans-serif;
+            font-weight: 400;
+            font-style: normal;
+            background: #f5f5f5;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: #fff;
+            margin: 20px;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .logo {
+            height: 60px;
+        }
+
+        input {
+            width: 95%;
+            padding: 10px;
+            margin-bottom: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        .addItem,
+        button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+        }
+
+        .addItem:hover {
+            background: #0056b3;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th,
+        td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            font-size: 14px;
+            text-align: left;
+        }
+
+        .icon-btn {
+            background: transparent;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 4px;
+            line-height: 1;
+        }
+
+        .icon-btn.green:hover {
+            transform: scale(1.2);
+        }
+
+        .icon-btn.red:hover {
+            transform: scale(1.2);
+        }
+
+        .report {
+            margin-top: 20px;
+            border-top: 1px solid #ccc;
+            padding-top: 15px;
+        }
+
+        .whatsapp-share {
+            background: #25d366;
+            color: white;
+            font-weight: bold;
+        }
+
+        .whatsapp-share:hover {
+            background: #119441;
+        }
+
+        .credit {
+            text-align: center;
+            margin-top: 20px;
+            font-size: smaller;
+            font-weight: 600;
+            color: #927c7c;
+        }
+
+        @media (max-width: 480px) {
+
+            input,
+            button,
+            th,
+            td {
+                font-size: 13px;
+            }
+
+            .btn-small {
+                font-size: 11px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1><img src="./logo.png" class="logo" alt="logo"> Smart List App</h1>
+
+        <input type="text" id="itemInput" placeholder="Enter item name" />
+        <input type="number" id="qtyInput" placeholder="Enter quantity (e.g. 2)" />
+        <button class="addItem" onclick="addItem()">Add Item</button>
+
+        <table id="listTable">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Item</th>
+                    <th>Qty</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <div class="report" id="reportSection" style="display: none;">
+            <h3>📊 Purchase Report</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Item</th>
+                        <th>Qty</th>
+                        <th>Price (₹)</th>
+                    </tr>
+                </thead>
+                <tbody id="reportBody"></tbody>
+            </table>
+            <p><strong>Total Expense: ₹<span id="totalExpense">0</span></strong></p>
+        </div>
+
+        <button class="whatsapp-share" onclick="shareList()">📤 Share List on WhatsApp</button>
+        <button class="whatsapp-share" onclick="shareReport()">📤 Share Report on WhatsApp</button>
+        <div class="credit">Developed by Mr. Karunanidhi</div>
+    </div>
+
+
+
+    <script>
+        const itemInput = document.getElementById('itemInput');
+        const qtyInput = document.getElementById('qtyInput');
+        const listTableBody = document.querySelector('#listTable tbody');
+        const reportSection = document.getElementById('reportSection');
+        const reportBody = document.getElementById('reportBody');
+        const totalExpense = document.getElementById('totalExpense');
+
+        let items = JSON.parse(localStorage.getItem('smartTableList')) || [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            items.forEach((item, i) => renderRow(item, i));
+            updateReport();
+        });
+
+        function save() {
+            localStorage.setItem('smartTableList', JSON.stringify(items));
+        }
+
+        function addItem() {
+            const name = itemInput.value.trim();
+            const qty = qtyInput.value.trim();
+
+            if (name === '' || qty === '') return;
+
+            const newItem = { name, qty, purchased: false, price: null };
+            items.push(newItem);
+            renderRow(newItem, items.length - 1);
+            save();
+            itemInput.value = '';
+            qtyInput.value = '';
+        }
+
+        function renderRow(item, index) {
+            const row = document.createElement('tr');
+
+            row.innerHTML = `
+    <td>${index + 1}</td>
+    <td>${item.name}</td>
+    <td>${item.qty}</td>
+    <td style="display: flex; gap: 5px;">
+      ${!item.purchased ? `
+        <button class="icon-btn green" onclick="markPurchased(${index})" title="Mark as Purchased"><i class="fa-solid fa-check" style="color: #00ff00;"></i></button>
+      ` : `₹${item.price}`}
+      <button class="icon-btn red" onclick="deleteItem(${index})" title="Delete"><i class="fa-solid fa-trash" style="color: #ff0000;"></i></button>
+    </td>
+  `;
+
+            listTableBody.appendChild(row);
+        }
+
+
+        function markPurchased(index) {
+            const price = prompt(`Kitne ka mila "${items[index].name}"?`);
+            if (price === null || price.trim() === '' || isNaN(price)) return;
+
+            items[index].purchased = true;
+            items[index].price = parseFloat(price);
+            refresh();
+        }
+
+        function deleteItem(index) {
+            items.splice(index, 1);
+            refresh();
+        }
+
+        function refresh() {
+            listTableBody.innerHTML = '';
+            items.forEach((item, i) => renderRow(item, i));
+            save();
+            updateReport();
+        }
+
+        function updateReport() {
+            const purchased = items.filter(i => i.purchased);
+            if (purchased.length === 0) {
+                reportSection.style.display = 'none';
+                return;
+            }
+
+            reportBody.innerHTML = '';
+            let total = 0;
+            purchased.forEach((item, i) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+          <td>${i + 1}</td>
+          <td>${item.name}</td>
+          <td>${item.qty}</td>
+          <td>₹${item.price}</td>
+        `;
+                reportBody.appendChild(row);
+                total += item.price;
+            });
+
+            totalExpense.textContent = total.toFixed(2);
+            reportSection.style.display = 'block';
+        }
+
+        function shareList() {
+            const pending = items.filter(i => !i.purchased);
+            if (pending.length === 0) {
+                alert("No pending items to share.");
+                return;
+            }
+
+            let text = "*📝 Shopping List:*\n";
+            pending.forEach((item, i) => {
+                text += `${i + 1}. ${item.name} (Qty: ${item.qty})\n`;
+            });
+
+            const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+            window.open(url, '_blank');
+        }
+
+        function shareReport() {
+            const purchased = items.filter(i => i.purchased);
+            if (purchased.length === 0) {
+                alert("No report to share.");
+                return;
+            }
+
+            let text = "*📊 Purchase Report:*\n";
+            let total = 0;
+
+            purchased.forEach((item, i) => {
+                text += `${i + 1}. ${item.name} (Qty: ${item.qty}) – ₹${item.price}\n`;
+                total += item.price;
+            });
+
+            text += `\n*Total Expense: ₹${total.toFixed(2)}*`;
+            const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+            window.open(url, '_blank');
+        }
+    </script>
+</body>
+
+</html>
