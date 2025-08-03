@@ -41,6 +41,36 @@
             justify-content: center;
         }
 
+        .date-select {
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            font-size: 12px;
+            width: 50%;
+        }
+
+        .date-select label {
+            font-weight: bold;
+            color: #333;
+        }
+
+        #dateFilter {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 15px;
+            background-color: #fff;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg fill='gray' height='18' viewBox='0 0 24 24' width='18' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 16px;
+        }
+
+
         .logo {
             height: 60px;
         }
@@ -146,6 +176,13 @@
     <div class="container">
         <h1><img src="./logo.png" class="logo" alt="logo"> Smart List App</h1>
 
+        <div class="date-select">
+            <label for="dateFilter">📅 Select Date:</label>
+            <select id="dateFilter" onchange="filterByDate()"></select>
+        </div>
+
+
+
         <input type="text" id="itemInput" placeholder="Enter item name" />
         <input type="number" id="qtyInput" placeholder="Enter quantity (e.g. 2)" />
         <button class="addItem" onclick="addItem()">Add Item</button>
@@ -180,6 +217,13 @@
 
         <button class="whatsapp-share" onclick="shareList()">📤 Share List on WhatsApp</button>
         <button class="whatsapp-share" onclick="shareReport()">📤 Share Report on WhatsApp</button>
+
+        <div class="report" id="monthlySummarySection" style="display: none;">
+            <h3>📅 Monthly Summary</h3>
+            <ul id="monthlySummaryList"></ul>
+        </div>
+
+
         <div class="credit">Developed by Mr. Karunanidhi</div>
     </div>
 
@@ -195,10 +239,8 @@
 
         let items = JSON.parse(localStorage.getItem('smartTableList')) || [];
 
-        document.addEventListener('DOMContentLoaded', () => {
-            items.forEach((item, i) => renderRow(item, i));
-            updateReport();
-        });
+        document.addEventListener('DOMContentLoaded', refresh);
+
 
         function save() {
             localStorage.setItem('smartTableList', JSON.stringify(items));
@@ -210,15 +252,32 @@
 
             if (name === '' || qty === '') return;
 
-            const newItem = { name, qty, purchased: false, price: null };
+            const today = new Date().toISOString().slice(0, 10); // Format: YYYY-MM-DD
+
+            const newItem = {
+                name,
+                qty,
+                purchased: false,
+                price: null,
+                date: today
+            };
+
             items.push(newItem);
-            renderRow(newItem, items.length - 1);
             save();
+            refresh();
             itemInput.value = '';
             qtyInput.value = '';
         }
 
-        function renderRow(item, index) {
+        function filterByDate() {
+            const selectedDate = document.getElementById('dateFilter').value;
+            const filtered = items.filter(i => i.date === selectedDate);
+            renderFilteredList(filtered);
+        }
+
+
+
+        function renderRow(item, index, list = items) {
             const row = document.createElement('tr');
 
             row.innerHTML = `
@@ -227,9 +286,9 @@
     <td>${item.qty}</td>
     <td style="display: flex; gap: 5px;">
       ${!item.purchased ? `
-        <button class="icon-btn green" onclick="markPurchased(${index})" title="Mark as Purchased"><i class="fa-solid fa-check" style="color: #00ff00;"></i></button>
+        <button class="icon-btn green" onclick="markPurchased(${items.indexOf(item)})" title="Mark as Purchased"><i class="fa-solid fa-check" style="color: #00ff00;"></i></button>
       ` : `₹${item.price}`}
-      <button class="icon-btn red" onclick="deleteItem(${index})" title="Delete"><i class="fa-solid fa-trash" style="color: #ff0000;"></i></button>
+      <button class="icon-btn red" onclick="deleteItem(${items.indexOf(item)})" title="Delete"><i class="fa-solid fa-trash" style="color: #ff0000;"></i></button>
     </td>
   `;
 
@@ -238,34 +297,72 @@
 
 
         function markPurchased(index) {
-        const item = items[index];
-        const rate = prompt(`"${item.name}" ka rate per unit kya hai? (Qty: ${item.qty})`);
+            const item = items[index];
+            const rate = prompt(`"${item.name}" ka rate per unit kya hai? (Qty: ${item.qty})`);
 
-        if (rate === null || rate.trim() === '' || isNaN(rate)) return;
+            if (rate === null || rate.trim() === '' || isNaN(rate)) return;
 
-        const total = parseFloat(rate) * parseFloat(item.qty);
+            const total = parseFloat(rate) * parseFloat(item.qty);
 
-        items[index].purchased = true;
-        items[index].price = parseFloat(total.toFixed(2)); // Save total price
-        save();
-        refresh();
-}
+            items[index].purchased = true;
+            items[index].price = parseFloat(total.toFixed(2)); // Save total price
+            save();
+            refresh();
+        }
 
 
         function deleteItem(index) {
             items.splice(index, 1);
+            save();
             refresh();
         }
 
         function refresh() {
-            listTableBody.innerHTML = '';
-            items.forEach((item, i) => renderRow(item, i));
-            save();
-            updateReport();
+            const today = new Date().toISOString().slice(0, 10);
+            const dropdown = document.getElementById('dateFilter');
+
+            // Get all unique dates from items
+            const dates = [...new Set(items.map(i => i.date))];
+
+            // If today's date not in list, include it to allow fresh entry
+            const allDates = dates.includes(today) ? dates : [...dates, today];
+            allDates.sort().reverse();
+
+            // Populate dropdown
+            dropdown.innerHTML = '';
+            allDates.forEach(date => {
+                const option = document.createElement('option');
+                option.value = date;
+                option.textContent = date === today ? `${date} (Today)` : date;
+                dropdown.appendChild(option);
+            });
+
+            // Set default selected value: today if exists, else first available
+            dropdown.value = allDates.includes(today) ? today : allDates[0] || today;
+
+            // Always call this to ensure filtered list & report render correctly
+            filterByDate();
+            updateMonthlySummary();
         }
 
-        function updateReport() {
-            const purchased = items.filter(i => i.purchased);
+
+
+        function renderFilteredList(filteredItems) {
+            listTableBody.innerHTML = '';
+
+            if (filteredItems.length === 0) {
+                listTableBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:gray;">No items for selected date</td></tr>`;
+            } else {
+                filteredItems.forEach((item, i) => renderRow(item, i, filteredItems));
+            }
+
+            updateReport(filteredItems);
+        }
+
+
+
+        function updateReport(filteredItems) {
+            const purchased = filteredItems.filter(i => i.purchased);
             if (purchased.length === 0) {
                 reportSection.style.display = 'none';
                 return;
@@ -276,11 +373,11 @@
             purchased.forEach((item, i) => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-          <td>${i + 1}</td>
-          <td>${item.name}</td>
-          <td>${item.qty}</td>
-          <td>₹${item.price}</td>
-        `;
+      <td>${i + 1}</td>
+      <td>${item.name}</td>
+      <td>${item.qty}</td>
+      <td>₹${item.price}</td>
+    `;
                 reportBody.appendChild(row);
                 total += item.price;
             });
@@ -289,14 +386,50 @@
             reportSection.style.display = 'block';
         }
 
-        function shareList() {
-            const pending = items.filter(i => !i.purchased);
-            if (pending.length === 0) {
-                alert("No pending items to share.");
+        function updateMonthlySummary() {
+            const summarySection = document.getElementById('monthlySummarySection');
+            const summaryList = document.getElementById('monthlySummaryList');
+
+            const purchasedItems = items.filter(item => item.purchased);
+            if (purchasedItems.length === 0) {
+                summarySection.style.display = 'none';
                 return;
             }
 
-            let text = "*📝 Shopping List:*\n";
+            const monthlyTotals = {};
+
+            purchasedItems.forEach(item => {
+                const [year, month] = item.date.split("-"); // 'YYYY-MM-DD'
+                const key = `${year}-${month}`;
+                if (!monthlyTotals[key]) monthlyTotals[key] = 0;
+                monthlyTotals[key] += item.price;
+            });
+
+            // Sort months descending
+            const sortedKeys = Object.keys(monthlyTotals).sort().reverse();
+
+            summaryList.innerHTML = '';
+            sortedKeys.forEach(key => {
+                const [year, month] = key.split("-");
+                const date = new Date(`${year}-${month}-01`);
+                const monthYear = date.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+                const li = document.createElement('li');
+                li.textContent = `${monthYear} – ₹${monthlyTotals[key].toFixed(2)}`;
+                summaryList.appendChild(li);
+            });
+
+            summarySection.style.display = 'block';
+        }
+
+
+
+        function shareList() {
+            const selectedDate = document.getElementById('dateFilter').value;
+            const pending = items.filter(i => i.date === selectedDate && !i.purchased);
+            if (pending.length === 0) return alert("No pending items.");
+
+            let text = `📝 *List - ${selectedDate}*\n`;
             pending.forEach((item, i) => {
                 text += `${i + 1}. ${item.name} (Qty: ${item.qty})\n`;
             });
@@ -306,26 +439,24 @@
         }
 
         function shareReport() {
-            const purchased = items.filter(i => i.purchased);
-            if (purchased.length === 0) {
-                alert("No report to share.");
-                return;
-            }
+            const selectedDate = document.getElementById('dateFilter').value;
+            const purchased = items.filter(i => i.date === selectedDate && i.purchased);
+            if (purchased.length === 0) return alert("No report for this date.");
 
-            let text = "*📊 Purchase Report:*\n";
             let total = 0;
-
+            let text = `📊 *Purchase Report - ${selectedDate}*\n`;
             purchased.forEach((item, i) => {
                 text += `${i + 1}. ${item.name} (Qty: ${item.qty}) – ₹${item.price}\n`;
                 total += item.price;
             });
 
-            text += `\n*Total Expense: ₹${total.toFixed(2)}*`;
+            text += `\n*Total: ₹${total.toFixed(2)}*`;
+
             const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
             window.open(url, '_blank');
         }
+
     </script>
 </body>
-
 
 </html>
